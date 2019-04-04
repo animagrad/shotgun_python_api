@@ -218,7 +218,6 @@ class ServerCapabilities(object):
         self.host = host
         self.server_info = meta
 
-        print(meta)
         # Version from server is major.minor.rev or major.minor.rev."Dev"
         # Store version as tuple and check dev flag
         try:
