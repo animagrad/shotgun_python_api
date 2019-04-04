@@ -16,6 +16,7 @@ The latest version can always be found at http://github.com/shotgunsoftware/pyth
 
 * Shotgun server v2.4.12+.
 * Python v2.6 - v2.7.
+* Python 3 compatibility added by Andriy Babak <ababak@gmail.com>. Use at your own risk.
 
 ## High Performance Requirements
 

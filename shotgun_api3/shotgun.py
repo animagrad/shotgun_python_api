@@ -27,14 +27,43 @@
  CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
  OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+ DISCLAIMER:
+ A special version to make API compatible with Python 3
+ Use at your own risk, although it works for us without problems
+ Modified by:
+ Andriy Babak <ababak@gmail.com>
+ 2019-04-04
+
 """
 
+class Dummy:
+    pass
+
+try:
+    unicode
+except:
+    unicode = Dummy
+try:
+    basestring
+except NameError:
+    basestring = str
+
 import base64
-import cookielib    # used for attachment upload
-import cStringIO    # used for attachment upload
+# used for attachment upload
+try:
+    import cookielib
+except ImportError:
+    import http.cookiejar as cookielib
+# used for attachment upload
+try:
+    import cStringIO
+except ImportError:
+    import io as cStringIO
 import datetime
 import logging
-import mimetools    # used for attachment upload
+# used for attachment upload
+import email.generator
 import os
 import re
 import copy
@@ -42,19 +71,36 @@ import stat         # used for attachment upload
 import sys
 import time
 import types
-import urllib
-import urllib2      # used for image upload
-import urlparse
-import shutil       # used for attachment download
-import httplib      # Used for secure file upload.
+try:
+    import urllib.request as urllib
+except ImportError:
+    import urllib
+# used for image upload
+try:
+    import urllib2
+except ImportError:
+    import urllib.request as urllib2
+try:
+    import urlparse
+except ImportError:
+    import urllib.parse as urlparse
+# used for attachment download
+import shutil
+# Used for secure file upload.
+try:
+    import httplib
+except ImportError:
+    import http.client	 as httplib
 
 # use relative import for versions >=2.5 and package import for python versions <2.5
-if (sys.version_info[0] > 2) or (sys.version_info[0] == 2 and sys.version_info[1] >= 6):
-    from sg_26 import *
-elif (sys.version_info[0] > 2) or (sys.version_info[0] == 2 and sys.version_info[1] >= 5):
-    from sg_25 import *
+if sys.version_info[0] > 2:
+    from .sg_3 import *
+elif sys.version_info[0] == 2 and sys.version_info[1] >= 6:
+    from .sg_26 import *
+elif sys.version_info[0] == 2 and sys.version_info[1] >= 5:
+    from .sg_25 import *
 else:
-    from sg_24 import *
+    from .sg_24 import *
 
 # mimetypes imported in version specific imports
 mimetypes.add_type('video/webm','.webm') # webm and mp4 seem to be missing
@@ -83,7 +129,7 @@ not require the added security provided by enforcing this.
 """
 try:
     import ssl
-except ImportError, e:
+except ImportError as e:
     if "SHOTGUN_FORCE_CERTIFICATE_VALIDATION" in os.environ:
         raise ImportError("%s. SHOTGUN_FORCE_CERTIFICATE_VALIDATION environment variable prevents "
                           "disabling SSL certificate validation." % e)
@@ -172,6 +218,7 @@ class ServerCapabilities(object):
         self.host = host
         self.server_info = meta
 
+        print(meta)
         # Version from server is major.minor.rev or major.minor.rev."Dev"
         # Store version as tuple and check dev flag
         try:
@@ -1980,7 +2027,7 @@ class Shotgun(object):
             "field_name" : field_name,
             "properties": [
                 {"property_name" : k, "value" : v}
-                for k, v in (properties or {}).iteritems()
+                for k, v in (properties or {}).items()
             ]
         }
 
@@ -2540,7 +2587,7 @@ class Shotgun(object):
         if file_path:
             try:
                 fp = open(file_path, 'wb')
-            except IOError, e:
+            except IOError as e:
                 raise IOError("Unable to write Attachment to disk using "\
                               "file_path. %s" % e)
 
@@ -2562,7 +2609,7 @@ class Shotgun(object):
                 attachment = req.read()
         # 400 [sg] Attachment id doesn't exist or is a local file
         # 403 [s3] link is invalid
-        except urllib2.URLError, e:
+        except urllib2.URLError as e:
             if file_path:
                 fp.close()
             err = "Failed to open %s\n%s" % (url, e)
@@ -2896,7 +2943,7 @@ class Shotgun(object):
             raise ValueError("entity_types parameter must be a dictionary")
 
         api_entity_types = {}
-        for (entity_type, filter_list) in entity_types.iteritems():
+        for (entity_type, filter_list) in entity_types.items():
 
             if isinstance(filter_list, (list, tuple)):
                 resolved_filters = _translate_filters(filter_list, filter_operator=None)
@@ -3175,7 +3222,7 @@ class Shotgun(object):
         LOG.debug("Completed rpc call to %s" % (method))
         try:
             self._parse_http_status(http_status)
-        except ProtocolError, e:
+        except ProtocolError as e:
             e.headers = resp_headers
             # 403 is returned with custom error page when api access is blocked
             if e.errcode == 403:
@@ -3313,7 +3360,7 @@ class Shotgun(object):
             attempt += 1
             try:
                 return self._http_request(verb, path, body, req_headers)
-            except SSLHandshakeError, e:
+            except SSLHandshakeError as e:
                 # Test whether the exception is due to the fact that this is an older version of
                 # Python that cannot validate certificates encrypted with SHA-2. If it is, then
                 # fall back on disabling the certificate validation and try again - unless the
@@ -3368,7 +3415,7 @@ class Shotgun(object):
         http_status = (resp.status, resp.reason)
         resp_headers = dict(
             (k.lower(), v)
-            for k, v in resp.iteritems()
+            for k, v in resp.items()
         )
         resp_body = content
 
@@ -3440,7 +3487,7 @@ class Shotgun(object):
 
         def _decode_dict(dct):
             newdict = {}
-            for k, v in dct.iteritems():
+            for k, v in dct.items():
                 if isinstance(k, unicode):
                     k = k.encode('utf-8')
                 if isinstance(v, unicode):
@@ -3500,7 +3547,7 @@ class Shotgun(object):
         if isinstance(data, dict):
             return dict(
                 (k, recursive(v, visitor))
-                for k, v in data.iteritems()
+                for k, v in data.items()
             )
 
         return visitor(data)
@@ -3543,7 +3590,7 @@ class Shotgun(object):
                     value = _change_tz(value)
                 return value.strftime("%Y-%m-%dT%H:%M:%SZ")
 
-            if isinstance(value, str):
+            if isinstance(value, str) and basestring != str:
                 # Convert strings to unicode
                 return value.decode("utf-8")
 
@@ -3647,12 +3694,12 @@ class Shotgun(object):
                 continue
 
             # iterate over each item and check each field for possible injection
-            for k, v in rec.iteritems():
+            for k, v in rec.items():
                 if not v:
                     continue
 
                 # Check for html entities in strings
-                if isinstance(v, types.StringTypes):
+                if isinstance(v, basestring):
                     rec[k] = rec[k].replace('&lt;', '<')
 
                 # check for thumbnail for older version (<3.3.0) of shotgun
@@ -3717,7 +3764,7 @@ class Shotgun(object):
         [{'field_name': 'foo', 'value': 'bar', 'thing1': 'value1'}]
         """
         ret = []
-        for k, v in (d or {}).iteritems():
+        for k, v in (d or {}).items():
             d = {key_name: k, value_name: v}
             d.update((extra_data or {}).get(k, {}))
             ret.append(d)
@@ -3730,7 +3777,7 @@ class Shotgun(object):
 
         e.g. d {'foo' : 'bar'} changed to {'foo': {"value": 'bar'}]
         """
-        return dict([(k, {key_name: v}) for (k,v) in (d or {}).iteritems()])
+        return dict([(k, {key_name: v}) for (k,v) in (d or {}).items()])
 
     def _upload_file_to_storage(self, path, storage_url):
         """
@@ -3836,7 +3883,7 @@ class Shotgun(object):
             request.get_method = lambda: "PUT"
             result = opener.open(request)
             etag = result.info().getheader("ETag")
-        except urllib2.HTTPError, e:
+        except urllib2.HTTPError as e:
             if e.code == 500:
                 raise ShotgunError("Server encountered an internal error.\n%s\n%s\n\n" % (storage_url, e))
             else:
@@ -3930,7 +3977,7 @@ class Shotgun(object):
             resp = opener.open(url, params)
             result = resp.read()
             # response headers are in str(resp.info()).splitlines()
-        except urllib2.HTTPError, e:
+        except urllib2.HTTPError as e:
             if e.code == 500:
                 raise ShotgunError("Server encountered an internal error. "
                                    "\n%s\n(%s)\n%s\n\n" % (url, self._sanitize_auth_params(params), e))
@@ -4013,7 +4060,7 @@ class FormPostHandler(urllib2.BaseHandler):
 
     def encode(self, params, files, boundary=None, buffer=None):
         if boundary is None:
-            boundary = mimetools.choose_boundary()
+            boundary = email.generator._make_boundary()
         if buffer is None:
             buffer = cStringIO.StringIO()
         for (key, value) in params:
