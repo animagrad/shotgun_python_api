@@ -3331,9 +3331,8 @@ class Shotgun(object):
         requires it. The unicode string is then encoded as 'utf-8' as it must
         be in a single byte encoding to go over the wire.
         """
-
         wire = json.dumps(payload, ensure_ascii=False)
-        if isinstance(wire, unicode):
+        if isinstance(wire, unicode) or basestring is str:
             return wire.encode("utf-8")
         return wire
 
